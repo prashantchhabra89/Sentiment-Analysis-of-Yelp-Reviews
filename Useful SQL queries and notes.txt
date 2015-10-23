@@ -1,0 +1,175 @@
+Importing file into MYSQL Business_Truncated(Tab_delimited).txt
+this file was created from business_truncated.csv using excel and saving it as tab delimited which was created from business csv file which was created from python to csv converter being applied on business json file
+http://www.mysqltutorial.org/import-csv-file-mysql-table/
+http://dev.mysql.com/doc/refman/5.1/en/loading-tables.html
+
+LOAD DATA LOCAL INFILE '/Users/pchhabra/Documents/Data Mining/Project/yelp_dataset_challenge_academic_dataset/dataset-examples/Business_Truncated(Tab_delimited).txt' INTO TABLE business LINES TERMINATED BY '\r'  IGNORE 1 ROWS;
+
+
+Importing reviews into MYSQL
+LOAD DATA LOCAL INFILE '/Users/pchhabra/Documents/Data Mining/Project/yelp_dataset_challenge_academic_dataset/dataset-examples/yelp_academic_dataset_review.csv' INTO TABLE reviews FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\n'  IGNORE 1 ROWS;
+Query OK, 1569184 rows affected, 26 warnings (38.18 sec)
+Records: 1569184  Deleted: 0  Skipped: 0  Warnings: 26
+
+fetching list of business which are restaurants from business table
+select business_id from business where categories like concat('%','Restaurants','%') limit 40;
+
+fetching list of reviews which are of restaurants
+select *  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%')) limit 10;
+
+fetching relevant coulumns from reviews(only reviews of restaurants)
+select * reviews.review_id, reviews.text, reviews.stars  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%'));
+
+
+
+
+aise hi
+select count (*)  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%'));
+
+
+
+fetching count of retaurant reviews
+mysql> select count(*)  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%'));
++----------+
+| count(*) |
++----------+
+|   979639 |
++----------+
+1 row in set (39 min 52.28 sec)
+
+
+fetching specific reviews
+select *  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%')) and (reviews.stars = 5 or reviews.stars = 1) limit 10;
+
+
+fetching needed columns from specific reviews
+select reviews.review_id, reviews.stars, reviews.text  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%')) and (reviews.stars = 5 or reviews.stars = 1) limit 10;
+
+creating table for holding 5000 1 star reviews
+CREATE TABLE reviews_1_5000 (
+  review_id VARCHAR(255),
+  stars INT,
+  text VARCHAR(10000)
+);
+
+
+uf61rPucuICXhSPXlZ1hIQ
+inserting first 5000 reviews of 1 star into reviews_1_5000 table
+INSERT INTO reviews_1_5000 select reviews.review_id, reviews.stars, reviews.text  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%')) and (reviews.stars = 1) limit 5000;
+
+
+creating table for holding 5000 5 star reviews
+CREATE TABLE reviews_5_5000 (
+  review_id VARCHAR(255),
+  stars INT,
+  text VARCHAR(10000)
+);
+
+
+inserting first 5000 reviews of 1 star into reviews_1_5000 table
+INSERT INTO reviews_5_5000 select reviews.review_id, reviews.stars, reviews.text  from reviews where reviews.business_id IN (select business.business_id from business where business.categories like concat('%','Restaurants','%')) and (reviews.stars = 5) limit 5000;
+
+
+creating mysql dump of table which have 5000 1 star review and table which has 5000 5 star review
+mysqldump -u root yelp reviews_5_5000 reviews_1_5000> /Users/pchhabra/Documents/Data\ Mining/Project/yelp_dataset_challenge_academic_dataset/dataset-examples/10000reviews/reviews_5n1_10000.sql
+
+
+importing into mysql
+mysql -u root yelp_test</Users/pchhabra/Documents/Data\ Mining/Project/yelp_dataset_challenge_academic_dataset/dataset-examples/10000reviews/reviews_5n1_10000.sql
+
+
+how to kill running query?
+mysql>show processlist;
+
+kill "number from first col";
+
+
+u can use in for where clause
+
+
+altering table structure to have column of sentiment as yes or no for weka
+alter table reviews_5_5000 add sentiment varchar(255);
+
+updating value of sentiment column
+update reviews_5_5000 set sentiment = 'yes' where stars = 5;
+
+creating a unified table for both yes and no reviews
+create table reviews_10000(review_id varchar(255), text varchar(10000), sentiment varchar(255));
+
+copying both yes and no table into this unified table
+insert into reviews_10000 select review_id, text, sentiment from reviews_5_5000;
+
+
+export csv file
+select * from reviews_10000 into outfile '/Users/pchhabra/Documents/reviews.csv' fields enclosed by '"' terminated by ',' escaped by '"' lines terminated by '\r\n';
+
+now adding headings of column and remove one review "mcninchh"  as we want to make it similar to https://raw.githubusercontent.com/jmgomezh/tmweka/master/OpinionMining/SFU_Review_Corpus.arff
+do this using just text editor
+also remove " and , from text using excel
+
+
+creating a test table and inserting values into it
+insert into ok select * from reviews_10000;
+
+-----note replce everying by just space-------------
+
+replacing "" " , with /
+mysql> update ok set text = replace(text, '""', '/') where text like '%""%'; 
+Query OK, 3 rows affected (0.01 sec)
+Rows matched: 3  Changed: 3  Warnings: 0
+
+mysql> update ok set text = replace(text, '"', '/') where text like '%"%';
+Query OK, 1820 rows affected (0.05 sec)
+Rows matched: 1820  Changed: 1820  Warnings: 0
+
+mysql> update ok set text = replace(text, ',', '/') where text like '%,%';
+Query OK, 7684 rows affected (0.11 sec)
+Rows matched: 7684  Changed: 7684  Warnings: 0
+
+mysql> update ok set review_id = replace(text, '""', '/') where text like '%""%';
+Query OK, 0 rows affected (0.02 sec)
+Rows matched: 0  Changed: 0  Warnings: 0
+
+mysql> update ok set review_id = replace(text, '"', '/') where text like '%"%'; Query OK, 0 rows affected (0.01 sec)
+Rows matched: 0  Changed: 0  Warnings: 0
+
+mysql> update ok set review_id = replace(text, ',', '/') where text like '%,%';
+Query OK, 0 rows affected (0.02 sec)
+Rows matched: 0  Changed: 0  Warnings: 
+
+please also replace \r and \n
+
+
+finally after talking to prateek this worked
+update ok set text = replace(text, '\r', '/') where text like '%\r%';
+
+
+arff is similar to csv but add headers and string having spaces should be enclosed in ""
+
+
+
+
+
+
+
+
+How to interpret weka classification?
+To elaborate on michaeltwofish's answer, some notes on the remaining values:
+
+TP Rate: rate of true positives (instances correctly classified as a given class)
+
+FP Rate: rate of false positives (instances falsely classified as a given class)
+
+Precision: proportion of instances that are truly of a class divided by the total instances classified as that class
+
+Recall: proportion of instances classified as a given class divided by the actual total in that class (equivalent to TP rate)
+
+F-Measure: A combined measure for precision and recall calculated as 2 * Precision * Recall / (Precision + Recall)
+
+As for the ROC area measurement, I agree with michaeltwofish that this is one of the most important values output by Weka. An "optimal" classifier will have ROC area values approaching 1, with 0.5 being comparable to "random guessing" (similar to a Kappa statistic of 0).
+
+It should be noted that the "balance" of the data set needs to be taken into account when interpreting results. Unbalanced data sets in which a disproportionately large amount of instances belong to a certain class may lead to high accuracy rates even though the classifier may not necessarily be particularly good.
+
+
+
+
